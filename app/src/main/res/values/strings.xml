@@ -1,0 +1,4 @@
+<resources>
+  <string name="app_name">FrescoPhotoView</string>
+  <string name="allow_zoomed_swiping">Allow swiping while zoomed</string>
+</resources>

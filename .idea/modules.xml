@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/FrescoPhotoView.iml" filepath="$PROJECT_DIR$/.idea/modules/FrescoPhotoView.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/FrescoPhotoView.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/FrescoPhotoView.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/frescophotoview/FrescoPhotoView.frescophotoview.iml" filepath="$PROJECT_DIR$/.idea/modules/frescophotoview/FrescoPhotoView.frescophotoview.iml" />
+    </modules>
+  </component>
+</project>

@@ -1,0 +1,3 @@
+include ':frescophotoview'
+include ':app'
+rootProject.name = "FrescoPhotoView"
