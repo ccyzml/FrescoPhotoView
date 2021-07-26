@@ -5,8 +5,15 @@
     xmlns:tools2="http://schemas.android.com/tools" tools:context="com.facebook.samples.zoomableapp.MainActivity"
     tools2:ignore="NamespaceTypo">
   <item
-      android:id="@+id/allow_zoomed_swiping"
+      android:id="@+id/allow_zoom"
       android:checkable="true"
-      android:title="@string/allow_zoomed_swiping"
+      android:checked="true"
+      android:title="允许放缩"
+      />
+  <item
+      android:id="@+id/allow_transition"
+      android:checkable="true"
+      android:checked="true"
+      android:title="允许平移"
       />
 </menu>

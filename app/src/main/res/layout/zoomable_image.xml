@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     >
 
-  <com.zml.frescophotoview.transition.FrescoTransitionPhotoView
+  <com.zml.frescophotoview.FrescoPhotoView
       android:layout_width="match_parent"
       android:layout_height="match_parent"
       android:id="@+id/zoomableView"

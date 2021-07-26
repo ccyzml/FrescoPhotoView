@@ -12,13 +12,15 @@ import android.graphics.PointF;
 import android.graphics.RectF;
 import android.view.MotionEvent;
 import androidx.annotation.Nullable;
+
+import com.zml.frescophotoview.gestures.GestureListener;
 import com.zml.frescophotoview.gestures.TransformGestureDetector;
 
 /**
  * Zoomable controller that calculates transformation based on touch events.
  */
 public abstract class ABSZoomableController
-        implements ZoomableController, TransformGestureDetector.Listener {
+        implements ZoomableController, GestureListener<TransformGestureDetector> {
 
     /**
      * Interface for handling call backs when the image bounds are set.
@@ -32,15 +34,13 @@ public abstract class ABSZoomableController
 
     protected static final float EPS = 1e-3f;
 
-    private static final RectF IDENTITY_RECT = new RectF(0, 0, 1, 1);
-
     private TransformGestureDetector mGestureDetector;
 
     private @Nullable
     ImageBoundsListener mImageBoundsListener;
 
     private @Nullable
-    Listener mListener = null;
+    ZoomableController.Listener mListener = null;
 
     private boolean mIsEnabled = false;
     private boolean mIsScaleEnabled = true;
@@ -70,7 +70,6 @@ public abstract class ABSZoomableController
      * Rests the controller.
      */
     public void reset() {
-        mGestureDetector.resetScale();
         mActiveTransform.reset();
         onTransformChanged();
     }
@@ -78,8 +77,7 @@ public abstract class ABSZoomableController
     /**
      * Sets the zoomable listener.
      */
-    @Override
-    public void setListener(Listener listener) {
+    public void setListener(ZoomableController.Listener listener) {
         mListener = listener;
     }
 
@@ -255,71 +253,13 @@ public abstract class ABSZoomableController
         return mActiveTransform;
     }
 
-    /**
-     * Gets the matrix that transforms image-relative coordinates to view-absolute coordinates. The
-     * zoomable transformation is taken into account.
-     */
-    public void getImageRelativeToViewAbsoluteTransform(Matrix outMatrix) {
-        outMatrix.setRectToRect(IDENTITY_RECT, mTransformedImageBounds, Matrix.ScaleToFit.FILL);
-    }
-
-    /**
-     * Maps point from view-absolute to image-relative coordinates. This takes into account the
-     * zoomable transformation.
-     */
     protected PointF mapViewToImage(PointF viewPoint) {
         float[] points = mTempValues;
         points[0] = viewPoint.x;
         points[1] = viewPoint.y;
         mActiveTransform.invert(mActiveTransformInverse);
         mActiveTransformInverse.mapPoints(points, 0, points, 0, 1);
-        mapAbsoluteToRelative(points, points, 1);
         return new PointF(points[0], points[1]);
-    }
-
-    /**
-     * Maps point from image-relative to view-absolute coordinates. This takes into account the
-     * zoomable transformation.
-     */
-    protected PointF mapImageToView(PointF imagePoint) {
-        float[] points = mTempValues;
-        points[0] = imagePoint.x;
-        points[1] = imagePoint.y;
-        mapRelativeToAbsolute(points, points, 1);
-        mActiveTransform.mapPoints(points, 0, points, 0, 1);
-        return new PointF(points[0], points[1]);
-    }
-
-    /**
-     * Maps array of 2D points from view-absolute to image-relative coordinates. This does NOT take
-     * into account the zoomable transformation. Points are represented by a float array of [x0, y0,
-     * x1, y1, ...].
-     *
-     * @param destPoints destination array (may be the same as source array)
-     * @param srcPoints  source array
-     * @param numPoints  number of points to map
-     */
-    protected void mapAbsoluteToRelative(float[] destPoints, float[] srcPoints, int numPoints) {
-        for (int i = 0; i < numPoints; i++) {
-            destPoints[i * 2 + 0] = (srcPoints[i * 2 + 0] - mImageBounds.left) / mImageBounds.width();
-            destPoints[i * 2 + 1] = (srcPoints[i * 2 + 1] - mImageBounds.top) / mImageBounds.height();
-        }
-    }
-
-    /**
-     * Maps array of 2D points from image-relative to view-absolute coordinates. This does NOT take
-     * into account the zoomable transformation. Points are represented by float array of [x0, y0, x1,
-     * y1, ...].
-     *
-     * @param destPoints destination array (may be the same as source array)
-     * @param srcPoints  source array
-     * @param numPoints  number of points to map
-     */
-    protected void mapRelativeToAbsolute(float[] destPoints, float[] srcPoints, int numPoints) {
-        for (int i = 0; i < numPoints; i++) {
-            destPoints[i * 2 + 0] = srcPoints[i * 2 + 0] * mImageBounds.width() + mImageBounds.left;
-            destPoints[i * 2 + 1] = srcPoints[i * 2 + 1] * mImageBounds.height() + mImageBounds.top;
-        }
     }
 
     /**

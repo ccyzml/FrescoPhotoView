@@ -3,14 +3,11 @@
                                                    android:layout_width="match_parent"
                                                    android:layout_height="match_parent"
                                                     android:id="@+id/root">
-    <com.zml.frescophotoview.transition.PhotoTransitionLayout
-        android:id="@+id/transition_layout"
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/pager"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-        <com.zml.frescophotoview.transition.FrescoTransitionPhotoView
-            android:id="@+id/photo_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
-    </com.zml.frescophotoview.transition.PhotoTransitionLayout>
+        android:layout_height="match_parent"
+        >
+    </androidx.viewpager2.widget.ViewPager2>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

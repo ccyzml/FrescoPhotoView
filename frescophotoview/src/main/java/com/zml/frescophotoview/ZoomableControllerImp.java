@@ -17,12 +17,16 @@ import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Scroller;
+
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
+
 import com.zml.frescophotoview.gestures.TransformGestureDetector;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+
+import static com.zml.frescophotoview.gestures.GestureInitDirectionIntent.*;
 
 public class ZoomableControllerImp extends ABSZoomableController {
 
@@ -31,7 +35,6 @@ public class ZoomableControllerImp extends ABSZoomableController {
     private final float[] mCurrentValues = new float[9];
     private final Matrix mNewTransform = new Matrix();
     private final Matrix mAnimeWorkingTransform = new Matrix();
-    private final Matrix mPreviousTempTransform = new Matrix();
     private final Matrix mFlingStartTempTransform = new Matrix();
     private ScaleFactorRetriever scaleFactorRetriever;
 
@@ -40,6 +43,7 @@ public class ZoomableControllerImp extends ABSZoomableController {
 
     public static final long DEFAULT_ANIMATION_DURATION = 400;
     private long animationDuration = DEFAULT_ANIMATION_DURATION;
+    private Runnable enableGestureWhenCompleted = () -> setDisableGesture(false);
 
     private Scroller mScroller;
     private Context mContext;
@@ -57,6 +61,7 @@ public class ZoomableControllerImp extends ABSZoomableController {
     public static final int LIMIT_SCALE = 1 << 2;
     public static final int LIMIT_ALL = LIMIT_TRANSLATION_X | LIMIT_TRANSLATION_Y | LIMIT_SCALE;
 
+
     public ZoomableControllerImp(TransformGestureDetector transformGestureDetector, Context context) {
         super(transformGestureDetector);
         mValueAnimator = ValueAnimator.ofFloat(0, 1);
@@ -73,41 +78,21 @@ public class ZoomableControllerImp extends ABSZoomableController {
         super.reset();
     }
 
-    protected void updatePreviousMatrix() {
-        mPreviousTempTransform.set(getActiveTransform());
-        getDetector().resetGestureStart();
-        mRetainedScale = 1f;
-    }
-
-    protected void setHorizontalNestedScrollEnabled(boolean enabled) {
-        mHorizontalNestedScrollEnabled = enabled;
-    }
-
-    /**
-     * Returns true if the zoomable transform is identity matrix, and the controller is idle.
-     */
-    @Override
-    public boolean isIdentity() {
-        return !isAnimatingOrScrolling() && super.isIdentity();
-    }
-
     public void zoomToPoint(
-            float scale,
+            float scaleFactor,
             PointF viewPoint,
-            @LimitFlag int limitFlags,
-            long durationMs,
             @Nullable Runnable completeListener,
             @Nullable ValueAnimator.AnimatorUpdateListener updateListener) {
         if (isAnimating()) {
             stopAnimating();
         }
-        PointF imagePoint = mapViewToImage(viewPoint);
-        calculateZoomToPointTransform(mNewTransform, scale, imagePoint, viewPoint, limitFlags);
-        setTransform(mNewTransform, durationMs, completeListener, updateListener);
+        mNewTransform.reset();
+        calculateZoomToPointTransform(mNewTransform, scaleFactor, viewPoint);
+        setTransformAnimated(mNewTransform, getAnimationDuration(), completeListener, updateListener);
     }
 
     public void fling(int velocityX, int velocityY) {
-        if (needSpringBack()) return;
+        if (isAnimating() || !isTranslationEnabled()) return;
         if (isScrolling()) {
             stopScrolling();
         }
@@ -122,17 +107,8 @@ public class ZoomableControllerImp extends ABSZoomableController {
             int currX = mScroller.getCurrX();
             int currY = mScroller.getCurrY();
             mNewTransform.set(mFlingStartTempTransform);
-            calculateTranslateToPointTransform(mNewTransform, currX, currY, LIMIT_TRANSLATION_X|LIMIT_TRANSLATION_Y);
-            setTransform(mNewTransform);
-        }
-    }
-
-    public void setTransform(
-            Matrix newTransform, long durationMs, @Nullable Runnable onAnimationComplete, @Nullable ValueAnimator.AnimatorUpdateListener listener) {
-        if (durationMs <= 0) {
-            setTransformImmediate(newTransform);
-        } else {
-            setTransformAnimated(newTransform, durationMs, onAnimationComplete, listener);
+            calculateTranslateToPointTransform(mNewTransform, currX, currY);
+            setTransformImmediate(mNewTransform);
         }
     }
 
@@ -174,9 +150,7 @@ public class ZoomableControllerImp extends ABSZoomableController {
                     }
 
                     private void onAnimationStopped() {
-                        getDetector().resetTranslate();
                         //将动画结束后的状态更新到初始矩阵
-                        updatePreviousMatrix();
                         mValueAnimator.removeAllUpdateListeners();
                         mValueAnimator.removeAllListeners();
                         if (completeListener != null) {
@@ -187,32 +161,11 @@ public class ZoomableControllerImp extends ABSZoomableController {
         mValueAnimator.start();
     }
 
-    protected boolean isAnimatingOrScrolling() {
-        return mValueAnimator.isRunning() || mScroller.computeScrollOffset();
-    }
-
-    private boolean mDisableGesture = false;
-
-    public void setDisableGesture(boolean disable) {
-        mDisableGesture = disable;
-    }
-
-    public boolean isDisableGesture() {
-        return mDisableGesture;
-    }
-
     @Override
     public void onGestureBegin(TransformGestureDetector detector) {
         if (mDisableGesture) return;
-        mRetainedScale = 1f;
         stopAnimatingAndScrolling();
-        mPreviousTempTransform.set(getActiveTransform());
-        mPreviousPointerCount = detector.getPointerCount();
     }
-
-    //记录维持双指缩放后又放开，之前的缩放大小
-    private float mRetainedScale = 1f;
-    private int mPreviousPointerCount = 0;
 
     @Override
     public void onGestureUpdate(final TransformGestureDetector detector) {
@@ -220,97 +173,57 @@ public class ZoomableControllerImp extends ABSZoomableController {
         if (isAnimatingOrScrolling()) {
             return;
         }
-        //在缩放时超过最大限制时松开手指,回弹
-        if (detector.getPointerCount() == 1 && mPreviousPointerCount == 2) {
-            trySpringBack(null, null);
+        //当多根手指变更为一根手指
+        if (detector.isPointerCountChanged() && detector.isSinglePointer()) {
+            trySpringBack();
         } else {
-            mPreviousPointerCount = detector.getPointerCount();
-            mRetainedScale = detector.getScale();
+            calculateGestureTransform(getActiveTransform());
+            onTransformChanged();
         }
-        calculateGestureTransform(getActiveTransform());
-        onTransformChanged();
-    }
-
-    public boolean isImageOutTopEdge() {
-        return getViewBounds().top - getTransformedImageBounds().top > EPS;
     }
 
     @Override
     public void onGestureEnd(TransformGestureDetector detector) {
-        if (mDisableGesture) {
-            return;
-        }
-        if (needSpringBack()) {
-            setDisableGesture(true);
-            trySpringBack(enableGestureWhenCompleted, null);
-        }
+        if (mDisableGesture) return;
     }
 
     protected boolean calculateGestureTransform(Matrix outTransform) {
         TransformGestureDetector detector = getDetector();
-        outTransform.set(mPreviousTempTransform);
-        if (isScaleEnabled()) {
-            float previousScale = getMatrixScaleFactor(mPreviousTempTransform);
-            float scale = mRetainedScale;
-            //大于或者小于Scale后，形成一定缩放阻尼
-            if (previousScale * scale < getMinScaleFactor()) {
-                float thresholdScale = getMinScaleFactor() / previousScale;
-                scale = Utils.calculateDamping(scale, thresholdScale, 0.02f);
-            } else if (previousScale * scale > getMaxScaleFactor()) {
-                float thresholdScale = getMaxScaleFactor() / previousScale;
-                scale = Utils.calculateDamping(scale, thresholdScale, 0.02f);
-            }
-            outTransform.postScale(scale, scale, detector.getPivotX(), detector.getPivotY());
-        }
+        outTransform.set(getActiveTransform());
         if (isTranslationEnabled()) {
-            float translateX = detector.getTranslationX();
-            float translateY = detector.getTranslationY();
-            outTransform.postTranslate(translateX, translateY);
+            outTransform.postTranslate(detector.getDeltaTranslationX(), detector.getDeltaTranslationY());
         }
-        limitTranslation(outTransform, LIMIT_TRANSLATION_X);
-        limitTranslation(outTransform, LIMIT_TRANSLATION_Y);
+        if (isScaleEnabled() && detector.isMultiPointer()) {
+            outTransform.postScale(detector.getDeltaScale(), detector.getDeltaScale(), detector.getPivotX(), detector.getPivotY());
+        }
+        if (detector.isSinglePointer()) {
+            limitTranslation(outTransform);
+        }
         return true;
     }
 
-    protected boolean calculateZoomToPointTransform(
+    protected void calculateZoomToPointTransform(
             Matrix outTransform,
             float scale,
-            PointF imagePoint,
-            PointF viewPoint,
-            @LimitFlag int limitFlags) {
-        float[] viewAbsolute = mTempValues;
-        viewAbsolute[0] = imagePoint.x;
-        viewAbsolute[1] = imagePoint.y;
-        mapRelativeToAbsolute(viewAbsolute, viewAbsolute, 1);
-        float distanceX = viewPoint.x - viewAbsolute[0];
-        float distanceY = viewPoint.y - viewAbsolute[1];
-        boolean transformCorrected = false;
-        outTransform.setScale(scale, scale, viewAbsolute[0], viewAbsolute[1]);
-        transformCorrected |= limitScale(outTransform, viewAbsolute[0], viewAbsolute[1], limitFlags);
-        outTransform.postTranslate(distanceX, distanceY);
-        transformCorrected |= limitTranslation(outTransform, limitFlags);
-        return transformCorrected;
+            PointF viewPoint) {
+        PointF imagePoint = mapViewToImage(viewPoint);
+        outTransform.setScale(scale, scale, imagePoint.x, imagePoint.y);
+        limitScale(outTransform, imagePoint.x, imagePoint.y);
+        limitTranslation(outTransform);
     }
 
-
-    protected boolean calculateTranslateToPointTransform(
+    protected void calculateTranslateToPointTransform(
             Matrix outTransform,
             float x,
-            float y,
-            @LimitFlag int limitFlags) {
-        boolean transformCorrected = false;
+            float y) {
         outTransform.postTranslate(x, y);
-        transformCorrected |= limitTranslation(outTransform, limitFlags);
-        return transformCorrected;
+        limitTranslation(outTransform);
     }
 
     protected boolean limitScale(
-            Matrix transform, float pivotX, float pivotY, @LimitFlag int limitTypes) {
-        if (!shouldLimit(limitTypes, LIMIT_SCALE)) {
-            return false;
-        }
+            Matrix transform, float pivotX, float pivotY) {
         float currentScale = getMatrixScaleFactor(transform);
-        float targetScale = limit(currentScale, getMinScaleFactor(), getMaxScaleFactor());
+        float targetScale =  Math.min(Math.max(getMinScaleFactor(), currentScale), getMaxScaleFactor());
         if (targetScale != currentScale) {
             float scale = targetScale / currentScale;
             transform.postScale(scale, scale, pivotX, pivotY);
@@ -321,25 +234,14 @@ public class ZoomableControllerImp extends ABSZoomableController {
 
     private final RectF mTempRect = new RectF();
 
-    protected boolean limitTranslation(Matrix transform, @LimitFlag int limitTypes) {
-        if (!shouldLimit(limitTypes, LIMIT_TRANSLATION_X | LIMIT_TRANSLATION_Y)) {
-            return false;
-        }
+    protected boolean limitTranslation(Matrix transform) {
         RectF b = mTempRect;
         RectF imageBounds = getImageBounds();
         RectF viewBounds = getViewBounds();
         b.set(imageBounds);
         transform.mapRect(b);
-        float offsetLeft =
-                shouldLimit(limitTypes, LIMIT_TRANSLATION_X)
-                        ? getOffset(
-                        b.left, b.right, viewBounds.left, viewBounds.right, imageBounds.centerX())
-                        : 0;
-        float offsetTop =
-                shouldLimit(limitTypes, LIMIT_TRANSLATION_Y)
-                        ? getOffset(
-                        b.top, b.bottom, viewBounds.top, viewBounds.bottom, imageBounds.centerY())
-                        : 0;
+        float offsetLeft = getOffset(b.left, b.right, viewBounds.left, viewBounds.right, imageBounds.centerX());
+        float offsetTop = getOffset(b.top, b.bottom, viewBounds.top, viewBounds.bottom, imageBounds.centerY());
         if (offsetLeft != 0 || offsetTop != 0) {
             transform.postTranslate(offsetLeft, offsetTop);
             return true;
@@ -378,45 +280,15 @@ public class ZoomableControllerImp extends ABSZoomableController {
         return 0;
     }
 
-    private float limit(float value, float min, float max) {
-        return Math.min(Math.max(min, value), max);
-    }
-
-    private static boolean shouldLimit(@LimitFlag int limits, @LimitFlag int flag) {
-        return (limits & flag) != LIMIT_NONE;
-    }
-
-    public boolean needSpringBack() {
-        return isOutOfMinScale() || isOutOfMaxScale();
-    }
-
-    public boolean isOutOfMaxScale() {
-        return getScaleFactor() > getMaxScaleFactor();
-    }
-
-    public boolean isOutOfMinScale() {
-        return getScaleFactor() < getMinScaleFactor();
-    }
-
-    private Runnable enableGestureWhenCompleted = new Runnable() {
-        @Override
-        public void run() {
-            setDisableGesture(false);
+    public void trySpringBack() {
+        mNewTransform.set(getActiveTransform());
+        RectF imageBounds = getViewBounds();
+        boolean limited =  limitScale(mNewTransform,imageBounds.centerX(),imageBounds.centerY());
+        limited |= limitTranslation(mNewTransform);
+        if (limited) {
+            setDisableGesture(true);
+            setTransformAnimated(mNewTransform,animationDuration,enableGestureWhenCompleted,null);
         }
-    };
-
-    public boolean trySpringBack(@Nullable Runnable completeListener, @Nullable ValueAnimator.AnimatorUpdateListener updateListener) {
-        RectF viewBounds = getViewBounds();
-        PointF vp = new PointF(viewBounds.centerX(), viewBounds.centerY());
-        if (isOutOfMinScale()) {
-            zoomToPoint(getMinScaleFactor(), vp, LIMIT_ALL, animationDuration, completeListener, updateListener);
-            return true;
-        }
-        if (isOutOfMaxScale()) {
-            zoomToPoint(getMaxScaleFactor(), vp, LIMIT_ALL, animationDuration, completeListener, updateListener);
-            return true;
-        }
-        return false;
     }
 
     protected void calculateInterpolation(Matrix outMatrix, float fraction) {
@@ -426,13 +298,11 @@ public class ZoomableControllerImp extends ABSZoomableController {
         outMatrix.setValues(mCurrentValues);
     }
 
-    private final float[] mTempValues = new float[9];
-
     public boolean isScrolling() {
         return mScroller.computeScrollOffset();
     }
 
-    public void stopScrolling(){
+    public void stopScrolling() {
         if (isScrolling()) {
             mScroller.forceFinished(true);
         }
@@ -442,7 +312,7 @@ public class ZoomableControllerImp extends ABSZoomableController {
         return mValueAnimator.isRunning();
     }
 
-    public void stopAnimating(){
+    public void stopAnimating() {
         if (isAnimating()) {
             mValueAnimator.cancel();
             mValueAnimator.removeAllUpdateListeners();
@@ -468,10 +338,10 @@ public class ZoomableControllerImp extends ABSZoomableController {
     public boolean isParentScrollEnabled() {
         if (isHorizontalNestedScrollEnabled()) {
             TransformGestureDetector detector = getDetector();
-            if ((isImageInLeftEdge() || isIdentity()) && (detector.getGestureIntent() == TransformGestureDetector.GESTURE_INTENT_DIRECTION_RIGHT)) {
+            if ((isImageInLeftEdge() || isIdentity()) && (detector.getGestureIntent() == RIGHT)) {
                 return true;
             }
-            if ((isImageInRightEdge() || isIdentity()) && (detector.getGestureIntent() == TransformGestureDetector.GESTURE_INTENT_DIRECTION_LEFT)) {
+            if ((isImageInRightEdge() || isIdentity()) && (detector.getGestureIntent() == LEFT)) {
                 return true;
             }
         }
@@ -490,6 +360,25 @@ public class ZoomableControllerImp extends ABSZoomableController {
                 return super.onTouchEvent(event);
             }
         }
+    }
+
+    protected boolean isAnimatingOrScrolling() {
+        return mValueAnimator.isRunning() || mScroller.computeScrollOffset();
+    }
+
+    private boolean mDisableGesture = false;
+
+    public void setDisableGesture(boolean disable) {
+        mDisableGesture = disable;
+    }
+
+    public boolean isDisableGesture() {
+        return mDisableGesture;
+    }
+
+
+    public boolean isImageOutTopEdge() {
+        return getViewBounds().top - getTransformedImageBounds().top > EPS;
     }
 
     public ScaleFactorRetriever getScaleFactorFetcher() {
@@ -511,11 +400,19 @@ public class ZoomableControllerImp extends ABSZoomableController {
         this.scaleFactorRetriever = scaleFactorRetriever;
     }
 
-    public Matrix getPreviousTempTransform() {
-        return mPreviousTempTransform;
-    }
-
     public Matrix getAnimeWorkingTransform() {
         return mAnimeWorkingTransform;
+    }
+
+    protected void setHorizontalNestedScrollEnabled(boolean enabled) {
+        mHorizontalNestedScrollEnabled = enabled;
+    }
+
+    /**
+     * Returns true if the zoomable transform is identity matrix, and the controller is idle.
+     */
+    @Override
+    public boolean isIdentity() {
+        return !isAnimatingOrScrolling() && super.isIdentity();
     }
 }
