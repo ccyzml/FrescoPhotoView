@@ -141,6 +141,9 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
 
     override fun setTransitionListener(listener: TransitionListener?) {
         transitionListener = listener
+        if (transitionViewDelegate != null) {
+            transitionViewDelegate?.setTransitionListener(listener)
+        }
     }
 
     private fun transformView(rect: Rect, view: View) {

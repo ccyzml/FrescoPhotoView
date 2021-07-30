@@ -1,4 +1,4 @@
-package com.zml.frescophotoviewdemo.transition.activityImp
+package com.zml.frescophotoviewdemo.transition
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.facebook.drawee.view.SimpleDraweeView
 import com.zml.frescophotoview.transition.TransitionUtils.calculateStartRect
 import com.zml.frescophotoviewdemo.R
-import com.zml.frescophotoviewdemo.transition.dialogImp.PhotoViewerDialog
+import com.zml.frescophotoviewdemo.transition.dialogImp.MyPhotoViewerDialog
 import com.zml.frescophotoviewdemo.model.DataSource
 import com.zml.frescophotoviewdemo.model.Media
 import com.zml.frescophotoviewdemo.model.PhotoMedia
@@ -63,7 +63,7 @@ class TransitionDemoActivity : AppCompatActivity() {
     //                    intent.putExtra("position",position);
     //                    startActivity(intent);
                     //Dialog实现
-                    PhotoViewerDialog(this@TransitionDemoActivity).showAnimated(position, startRect)
+                    MyPhotoViewerDialog(this@TransitionDemoActivity).showAnimated(position, startRect)
                 }
             }
 
@@ -74,12 +74,8 @@ class TransitionDemoActivity : AppCompatActivity() {
     }
 
     internal class VH(itemView: View) : ViewHolder(itemView) {
-        var draweeView: SimpleDraweeView
-        var playIV: ImageView
+        var draweeView: SimpleDraweeView = itemView.findViewById(R.id.img_sdv)
+        var playIV: ImageView = itemView.findViewById(R.id.play_iv)
 
-        init {
-            draweeView = itemView.findViewById(R.id.img_sdv)
-            playIV = itemView.findViewById(R.id.play_iv)
-        }
     }
 }

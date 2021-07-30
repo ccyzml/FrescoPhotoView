@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import com.zml.frescophotoviewdemo.transition.activityImp.TransitionDemoActivity
+import com.zml.frescophotoviewdemo.transition.TransitionDemoActivity
 
 /**
  * @autrhor zhangminglei01

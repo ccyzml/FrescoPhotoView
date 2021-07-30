@@ -7,7 +7,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.zml.frescophotoview.transition.TransitionListener
 import com.zml.frescophotoview.transition.TransitionState
 import com.zml.frescophotoview.transition.TransitionUtils.intArrayToRect
-import com.zml.frescophotoviewdemo.PagerAdapter
+import com.zml.frescophotoviewdemo.DemoAdapter
 import com.zml.frescophotoviewdemo.R
 import com.zml.frescophotoviewdemo.model.DataSource.medias
 
@@ -16,7 +16,7 @@ import com.zml.frescophotoviewdemo.model.DataSource.medias
  * Activity实现过渡效果
  */
 class TransitionDemoActivity2 : AppCompatActivity() {
-    private lateinit var adapter: PagerAdapter
+    private lateinit var adapter: DemoAdapter
     private lateinit var root: ViewGroup
     private lateinit var pager: ViewPager2
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,10 +24,8 @@ class TransitionDemoActivity2 : AppCompatActivity() {
         setContentView(R.layout.activirty_transition_demo_2)
         root = findViewById(R.id.root)
         pager = findViewById(R.id.pager)
-        adapter = PagerAdapter()
-        pager.setAdapter(adapter)
-        adapter.data = medias
-        lifecycle.addObserver(adapter)
+        adapter = DemoAdapter()
+        pager.adapter = adapter
         //==============必要配置========================
         //获取上个页面图片位置，url参数
         val intent = intent
