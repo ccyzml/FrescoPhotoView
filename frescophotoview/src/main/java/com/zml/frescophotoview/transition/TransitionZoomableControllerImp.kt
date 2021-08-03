@@ -15,7 +15,7 @@ class TransitionZoomableControllerImp(
     transformGestureDetector: TransformGestureDetector?,
     context: Context?
 ) : ZoomableControllerImp(transformGestureDetector, context), TransitionView {
-    private var transitionListener: TransitionListener? = null
+    private val transitionListeners = LinkedHashSet<TransitionListener>()
     private var dragTransitionEnabled = true
     private var transitionState = TransitionState.UNDEFINE
     private val newTransform = Matrix()
@@ -25,11 +25,15 @@ class TransitionZoomableControllerImp(
         val previousScaleFactor = getMatrixScaleFactor(dragTransitionStartMatrix)
         val workingScaleFactor = getMatrixScaleFactor(animeWorkingTransform)
         val factor = workingScaleFactor / previousScaleFactor
-        transitionListener?.onTransitionChanged(transitionState, factor)
+        transitionListeners.forEach { it.onTransitionChanged(transitionState, factor) }
     }
 
-    override fun setTransitionListener(listener: TransitionListener?) {
-        transitionListener = listener
+    override fun addTransitionListener(listener: TransitionListener) {
+        transitionListeners.add(listener)
+    }
+
+    override fun removeTransitionListener(listener: TransitionListener) {
+        transitionListeners.remove(listener)
     }
 
     val isInDragTransitionState: Boolean
@@ -54,7 +58,7 @@ class TransitionZoomableControllerImp(
             if (transitionState == TransitionState.UNDEFINE) {
                 transitionState = TransitionState.STATE_DRAG_TRANSITION
                 dragTransitionStartMatrix.set(activeTransform)
-                transitionListener?.onTransitionBegin(transitionState)
+                transitionListeners.forEach { it.onTransitionBegin(transitionState) }
             }
         }
         if (transitionState == TransitionState.STATE_DRAG_TRANSITION) {
@@ -71,7 +75,7 @@ class TransitionZoomableControllerImp(
         }
         if (transitionState == TransitionState.STATE_DRAG_TRANSITION) {
             val factor = dragFactor
-            transitionListener?.onTransitionEnd(transitionState)
+            transitionListeners.forEach { it.onTransitionEnd(transitionState) }
             if (factor < DRAG_EPS) {
                 dismissAnimated()
             } else {
@@ -86,10 +90,10 @@ class TransitionZoomableControllerImp(
         transitionState = TransitionState.STATE_RESUME_TRANSITION
         isDisableGesture = true
         newTransform.set(dragTransitionStartMatrix)
-        transitionListener?.onTransitionBegin(transitionState)
+        transitionListeners.forEach { it.onTransitionBegin(transitionState) }
         setTransformAnimated(newTransform, animationDuration, {
             isDisableGesture = false
-            transitionListener?.onTransitionEnd(transitionState)
+            transitionListeners.forEach { it.onTransitionEnd(transitionState) }
         }, transitionAnimatorListener)
     }
 
@@ -99,9 +103,9 @@ class TransitionZoomableControllerImp(
         newTransform.set(activeTransform)
         val rectF = transformedImageBounds
         newTransform.postScale(0f, 0f, rectF.centerX(), rectF.centerY())
-        transitionListener?.onTransitionBegin(transitionState)
+        transitionListeners.forEach { it.onTransitionBegin(transitionState) }
         setTransformAnimated(newTransform, animationDuration, {
-            transitionListener?.onTransitionEnd(transitionState)
+            transitionListeners.forEach { it.onTransitionEnd(transitionState) }
         }, transitionAnimatorListener)
     }
 
@@ -125,7 +129,7 @@ class TransitionZoomableControllerImp(
         val translationY = detector.translationY
         val scale = dragFactor
         outTransform.postScale(scale, scale, imageBound.centerX(), imageBound.centerY())
-        transitionListener?.onTransitionChanged(transitionState, scale)
+        transitionListeners.forEach { it.onTransitionChanged(transitionState, scale)}
         if (isTranslationEnabled) {
             outTransform.postTranslate(detector.translationX, translationY)
         }
@@ -139,4 +143,5 @@ class TransitionZoomableControllerImp(
     companion object {
         private const val DRAG_EPS = 0.8f
     }
+
 }

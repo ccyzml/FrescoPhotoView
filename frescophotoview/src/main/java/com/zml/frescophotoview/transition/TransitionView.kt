@@ -8,6 +8,6 @@ import android.view.MotionEvent
  */
 interface TransitionView {
     fun onTouchEvent(event: MotionEvent): Boolean
-    fun setTransitionListener(listener: TransitionListener?)
-
+    fun addTransitionListener(listener: TransitionListener)
+    fun removeTransitionListener(listener: TransitionListener)
 }

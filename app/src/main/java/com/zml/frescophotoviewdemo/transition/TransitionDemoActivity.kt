@@ -10,11 +10,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.facebook.drawee.view.SimpleDraweeView
-import com.zml.frescophotoview.transition.TransitionUtils.calculateStartRect
+import com.zml.frescophotoview.PhotoViewerDialog
+import com.zml.frescophotoview.transition.TransitionUtils
+import com.zml.frescophotoviewdemo.DemoAdapter
 import com.zml.frescophotoviewdemo.R
-import com.zml.frescophotoviewdemo.transition.dialogImp.MyPhotoViewerDialog
 import com.zml.frescophotoviewdemo.model.DataSource
-import com.zml.frescophotoviewdemo.model.Media
 import com.zml.frescophotoviewdemo.model.PhotoMedia
 import com.zml.frescophotoviewdemo.model.VideoMedia
 
@@ -24,7 +24,7 @@ import com.zml.frescophotoviewdemo.model.VideoMedia
  */
 class TransitionDemoActivity : AppCompatActivity() {
     lateinit var rv: RecyclerView
-    var medias: List<Media> = DataSource.medias
+    var medias: List<PhotoMedia> = DataSource.medias
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_transition_demo)
@@ -39,31 +39,17 @@ class TransitionDemoActivity : AppCompatActivity() {
 
             override fun onBindViewHolder(holder: VH, position: Int) {
                 val media = medias[position]
-                val url =
-                    if (media is PhotoMedia) media.picUrl else (media as VideoMedia).videoCoverUrl
+                val url = media.picUrl
                 holder.draweeView.setImageURI(url)
                 if (media is VideoMedia) {
                     holder.playIV.visibility = View.VISIBLE
                 }
                 holder.draweeView.setOnClickListener { v: View? ->
-                    var imageWidthHeight = IntArray(2)
-                    if (media is VideoMedia) {
-                        imageWidthHeight = media.picWidthHeight
-                    }
-                    if (media is PhotoMedia) {
-                        imageWidthHeight = media.picWidthHeight
-                    }
-                    val startRect = calculateStartRect(
+                    val startRect = TransitionUtils.calculateStartRect(
                         holder.draweeView,
-                        imageWidthHeight[0], imageWidthHeight[1]
+                        media.picWidthHeight
                     )
-                    //Activity实现
-    //                    Intent intent = new Intent(TransitionDemoActivity.this,TransitionDemoActivity2.class);
-    //                    intent.putExtra("start_rect_array",PhotoTransitionUtils.rectToIntArray(startRect));
-    //                    intent.putExtra("position",position);
-    //                    startActivity(intent);
-                    //Dialog实现
-                    MyPhotoViewerDialog(this@TransitionDemoActivity).showAnimated(position, startRect)
+                    PhotoViewerDialog(this@TransitionDemoActivity).apply { adapter = DemoAdapter() }.showAnimated(position,startRect)
                 }
             }
 

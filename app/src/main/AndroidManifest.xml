@@ -19,9 +19,6 @@
         <activity
             android:name="com.zml.frescophotoviewdemo.transition.TransitionDemoActivity"
             android:theme="@style/Theme.AppCompat" />
-        <activity
-            android:name="com.zml.frescophotoviewdemo.transition.activityImp.TransitionDemoActivity2"
-            android:theme="@style/translucent_activity_style" />
     </application>
 
     <!-- 网络相关 -->

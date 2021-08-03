@@ -8,24 +8,20 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.VideoView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.recyclerview.widget.RecyclerView
 import com.facebook.drawee.backends.pipeline.Fresco
 import com.facebook.drawee.interfaces.DraweeController
 import com.facebook.drawee.view.SimpleDraweeView
 import com.zml.frescophotoview.transition.*
 import com.zml.frescophotoviewdemo.model.DataSource
-import com.zml.frescophotoviewdemo.model.Media
 import com.zml.frescophotoviewdemo.model.PhotoMedia
 import com.zml.frescophotoviewdemo.model.VideoMedia
 
-class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
-    var outerTransitionListener: TransitionListener? = null
-    private var data: List<Media> = DataSource.medias
+class DemoAdapter : TransitionPagerAdapter<RecyclerView.ViewHolder>(){
+    private var data: List<PhotoMedia> = DataSource.medias
     private var playingHolder:VideoVH? =null
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransitionViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         when (viewType) {
             PHOTO -> {
                 return PhotoVH(
@@ -43,9 +39,9 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
         )
     }
 
-    override fun onBindViewHolder(holder: TransitionViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (holder is PhotoVH) {
-            val photoMedia : PhotoMedia = data.get(position) as PhotoMedia
+            val photoMedia : PhotoMedia = data[position]
             val controller: DraweeController = Fresco.newDraweeControllerBuilder()
                 .setUri(photoMedia.picUrl)
                 .build()
@@ -54,15 +50,15 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
             val videoMedia : VideoMedia = data[position] as VideoMedia
             holder.itemView.tag = videoMedia
             holder.videoCoverView.visibility = View.VISIBLE
-            holder.videoCoverView.setImageURI(videoMedia.videoCoverUrl)
+            holder.videoCoverView.setImageURI(videoMedia.picUrl)
         }
     }
 
-    override fun onViewAttachedToWindow(holder: TransitionViewHolder) {
+    override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
         super.onViewAttachedToWindow(holder)
         if (holder is VideoVH) {
             playingHolder = holder
-            if (!needAnimating) {
+            if (!needAnimation) {
                 playVideo()
             }
         }
@@ -75,7 +71,7 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
         holder.videoView.start()
     }
 
-    override fun onViewDetachedFromWindow(holder: TransitionViewHolder) {
+    override fun onViewDetachedFromWindow(holder: RecyclerView.ViewHolder) {
         super.onViewDetachedFromWindow(holder)
         if (holder is VideoVH) {
             holder.videoView.stopPlayback()
@@ -88,10 +84,10 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if (data[position] is PhotoMedia) {
-            PHOTO
-        } else {
+        return if (data[position] is VideoMedia) {
             VIDEO
+        } else {
+            PHOTO
         }
     }
 
@@ -99,12 +95,21 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
         return data.size
     }
 
-    internal inner class VideoVH(itemView: TransitionLayout) : TransitionViewHolder(itemView) {
+    internal inner class VideoVH(itemView: TransitionLayout) : RecyclerView.ViewHolder(itemView) {
+        private val transitionLayout = itemView
         var videoView: VideoView = itemView.findViewById(R.id.video_view)
         var videoCoverView:SimpleDraweeView = itemView.findViewById(R.id.video_cover);
 
         init {
-            transitionLayout.setTransitionListener(outerTransitionListener)
+            transitionLayout.addTransitionListener(object : TransitionListener {
+                override fun onTransitionBegin(state: Int) {}
+                override fun onTransitionChanged(state: Int, factor: Float) {}
+                override fun onTransitionEnd(state: Int) {
+                    if (state == TransitionState.STATE_ENTER_TRANSITION) {
+                         playVideo()
+                    }
+                }
+            })
             videoView.setOnInfoListener { _, what, _ ->
                 if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
                     videoCoverView.visibility = View.GONE
@@ -115,7 +120,8 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
     }
 
 
-    internal inner class PhotoVH(itemView: TransitionLayout) : TransitionViewHolder(itemView) {
+    internal inner class PhotoVH(itemView: TransitionLayout) : RecyclerView.ViewHolder(itemView) {
+        private val transitionLayout = itemView
         var photoView: FrescoTransitionPhotoView = itemView.findViewById(R.id.photo_view)
         init {
             //支持嵌套滚动
@@ -129,7 +135,6 @@ class DemoAdapter : TransitionPagerAdapter<TransitionViewHolder>(){
                     return super.onSingleTapConfirmed(e)
                 }
             })
-            transitionLayout.setTransitionListener(outerTransitionListener)
         }
     }
 

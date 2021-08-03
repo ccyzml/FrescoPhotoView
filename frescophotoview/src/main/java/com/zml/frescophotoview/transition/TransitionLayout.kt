@@ -14,6 +14,8 @@ import androidx.annotation.NonNull
 import com.zml.frescophotoview.gestures.GestureInitDirectionIntent
 import com.zml.frescophotoview.gestures.GestureListener
 import com.zml.frescophotoview.gestures.TransformGestureDetector
+import java.util.*
+import kotlin.collections.LinkedHashSet
 
 /**
  * @autrhor zhangminglei01
@@ -35,7 +37,7 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
     private var skipLayout = false
     private var transitionViewDelegate: TransitionView? = null
     private val alphaAnimator = ValueAnimator.ofFloat(1f, 0f)
-    private var transitionListener: TransitionListener? = null
+    private val transitionListeners = LinkedHashSet<TransitionListener>()
     private var dragFactor = 1f
     private val dismissAlphaAnimatorUpdateListener = ValueAnimator.AnimatorUpdateListener { animation ->
         val alpha = animation?.animatedValue as Float
@@ -55,28 +57,28 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
         transformView(workingRect, flingView)
         when (transitionState) {
             TransitionState.STATE_ENTER_TRANSITION -> {
-                transitionListener?.onTransitionChanged(transitionState, value)
+                transitionListeners.forEach { it.onTransitionChanged(transitionState, value)}
             }
             TransitionState.STATE_RESUME_TRANSITION -> {
-                transitionListener?.onTransitionChanged(transitionState, dragFactor + (1 - dragFactor) * value)
+                transitionListeners.forEach { it.onTransitionChanged(transitionState, dragFactor + (1 - dragFactor) * value)}
             }
             TransitionState.STATE_OUT_TRANSITION -> {
-                transitionListener?.onTransitionChanged(transitionState, dragFactor * (1 - value))
+                transitionListeners.forEach { it.onTransitionChanged(transitionState, dragFactor * (1 - value))}
             }
         }
     }
 
     private val animatorListener = object : Animator.AnimatorListener {
         override fun onAnimationStart(animation: Animator?) {
-            transitionListener?.onTransitionBegin(transitionState)
+            transitionListeners.forEach { it.onTransitionBegin(transitionState)}
         }
 
         override fun onAnimationEnd(animation: Animator?) {
-            transitionListener?.onTransitionEnd(transitionState)
+            transitionListeners.forEach { it.onTransitionEnd(transitionState)}
         }
 
         override fun onAnimationCancel(animation: Animator?) {
-            transitionListener?.onTransitionEnd(transitionState)
+            transitionListeners.forEach { it.onTransitionEnd(transitionState)}
         }
 
         override fun onAnimationRepeat(animation: Animator?) {
@@ -139,10 +141,17 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
         return true
     }
 
-    override fun setTransitionListener(listener: TransitionListener?) {
-        transitionListener = listener
+    override fun addTransitionListener(listener: TransitionListener) {
+        transitionListeners.add(listener)
         if (transitionViewDelegate != null) {
-            transitionViewDelegate?.setTransitionListener(listener)
+            transitionViewDelegate?.addTransitionListener(listener)
+        }
+    }
+
+    override fun removeTransitionListener(listener: TransitionListener) {
+        transitionListeners.add(listener)
+        if (transitionViewDelegate != null) {
+            transitionViewDelegate?.removeTransitionListener(listener)
         }
     }
 
@@ -161,7 +170,7 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
     override fun onGestureUpdate(detector: TransformGestureDetector) {
         if (this.detector.gestureIntent == GestureInitDirectionIntent.DOWN) {
             transitionState = TransitionState.STATE_DRAG_TRANSITION
-            transitionListener?.onTransitionBegin(transitionState)
+            transitionListeners.forEach { it.onTransitionBegin(transitionState)}
         }
         if (transitionState == TransitionState.STATE_DRAG_TRANSITION) {
             workingTransform.reset()
@@ -174,7 +183,7 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
             childView?.let {
                 transformView(workingRect, it)
             }
-            transitionListener?.onTransitionChanged(transitionState, dragFactor)
+            transitionListeners.forEach { it.onTransitionChanged(transitionState, dragFactor)}
         }
     }
 
@@ -190,7 +199,7 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
 
     override fun onGestureEnd(detector: TransformGestureDetector) {
         if (transitionState == TransitionState.STATE_DRAG_TRANSITION) {
-            transitionListener?.onTransitionEnd(transitionState)
+            transitionListeners.forEach { it.onTransitionEnd(transitionState)}
             dragFactor = getDragFactor()
             if (dragFactor < eps) {
                 startRect.set(workingRect)
@@ -229,6 +238,6 @@ class TransitionLayout : FrameLayout, GestureListener<TransformGestureDetector>,
 
     fun setDelegateDragTransitionView(transitionView: TransitionView) {
         transitionViewDelegate = transitionView
-        transitionViewDelegate?.setTransitionListener(transitionListener)
+        transitionListeners.forEach { transitionViewDelegate?.addTransitionListener(it) }
     }
 }

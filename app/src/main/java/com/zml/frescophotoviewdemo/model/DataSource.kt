@@ -3,7 +3,7 @@ package com.zml.frescophotoviewdemo.model
 import com.zml.frescophotoviewdemo.R
 
 object DataSource {
-    val medias:ArrayList<Media> = ArrayList()
+    val medias:ArrayList<PhotoMedia> = ArrayList()
     init {
         medias.add(
             PhotoMedia("https://www.gstatic.com/webp/gallery/1.sm.jpg",

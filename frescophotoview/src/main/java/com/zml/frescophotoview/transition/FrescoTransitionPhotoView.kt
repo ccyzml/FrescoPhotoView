@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import com.zml.frescophotoview.DefaultGestureHandler
 import com.zml.frescophotoview.FrescoPhotoView
 import com.zml.frescophotoview.gestures.TransformGestureDetector
+import java.util.*
 
 /**
  * @autrhor zhangminglei01
@@ -17,13 +18,14 @@ class FrescoTransitionPhotoView @JvmOverloads constructor(
 ) : FrescoPhotoView(context, attrs, defStyle), TransitionView {
     private lateinit var controllerImp: TransitionZoomableControllerImp
     private var curDragFactor = 0f
+    private val transitionListeners = LinkedHashSet<TransitionListener>()
     private val transitionListenerWrapper: TransitionListener = object : TransitionListener {
         override fun onTransitionBegin(state: Int) {
-            listener?.onTransitionBegin(state)
+            transitionListeners.forEach {it.onTransitionBegin(state)}
         }
 
         override fun onTransitionChanged(state: Int, factor: Float) {
-            listener?.onTransitionChanged(state, factor)
+            transitionListeners.forEach {it.onTransitionChanged(state,factor)}
             if (state == TransitionState.STATE_DRAG_TRANSITION) {
                 curDragFactor = factor
             }
@@ -35,18 +37,17 @@ class FrescoTransitionPhotoView @JvmOverloads constructor(
         }
 
         override fun onTransitionEnd(state: Int) {
-            listener?.onTransitionEnd(state)
+            transitionListeners.forEach {it.onTransitionEnd(state)}
         }
     }
 
-    var listener: TransitionListener? = null
     var transitionEnabled : Boolean = false
         set(enabled) {
             controllerImp.setTransitionEnabled(enabled)
         }
 
     init {
-        controllerImp.setTransitionListener(
+        controllerImp.addTransitionListener(
             transitionListenerWrapper
         )
     }
@@ -60,11 +61,15 @@ class FrescoTransitionPhotoView @JvmOverloads constructor(
         return TransitionGestureHandler(controllerImp)
     }
 
-    override fun setTransitionListener(transitionListener: TransitionListener?) {
-        listener = transitionListener
+    override fun addTransitionListener(transitionListener: TransitionListener) {
+        transitionListeners.add(transitionListener)
     }
 
     fun dismissAnimated() {
         controllerImp.dismissAnimated()
+    }
+
+    override fun removeTransitionListener(listener: TransitionListener) {
+        transitionListeners.remove(listener)
     }
 }

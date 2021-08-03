@@ -8,6 +8,12 @@ import android.view.View
  * @date 2021/3/12 5:20 下午
  */
 object TransitionUtils {
+
+    @JvmStatic
+    fun calculateStartRect(view: View, photoWidthHeight:IntArray): Rect {
+        return calculateStartRect(view,photoWidthHeight[0],photoWidthHeight[1])
+    }
+
     @JvmStatic
     fun calculateStartRect(view: View, photoWidth: Int, photoHeight: Int): Rect {
         val location = IntArray(2)
