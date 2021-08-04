@@ -6,7 +6,9 @@
 
 ![](https://upload-images.jianshu.io/upload_images/7523005-b929a6d09bcbbf72.gif?imageMogr2/auto-orient/strip|imageView2/2/w/320/format/webp)
 
-Download
+
+
+### Download
 
 **Step 1.** Add the JitPack repository to your build file
 
@@ -42,3 +44,5 @@ frescoPhotoView.setController(controller);
 ```
 
 ## 
+
+更多方法参考https://www.jianshu.com/p/ddfccadea6c8
