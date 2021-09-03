@@ -29,7 +29,7 @@ allprojects {
 
 ```css
 	dependencies {
-	        implementation 'com.github.ccyzml:FrescoPhotoView:1.0.0'
+	        implementation 'com.github.ccyzml:FrescoPhotoView:1.0.1'
 	}
 ```
 
